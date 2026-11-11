@@ -525,12 +525,12 @@ function getHighestCleared(){
 function setHighestCleared(level){
   level = Math.max(0, Math.floor(Number(level) || 0));
   const acc = (state.bonkAccount && state.bonkAccount.account) || 1;
-  // Account-wide row (class 0) drives unlocks; also raise every class row so UI is consistent
+  // Account-wide (class 0) + every class; SET value (not only raise) so export matches the field
   const classList = [0,1,2,3,4,5,6,7,8,9,11];
   const byClass = new Map((state.levels || []).filter(l => l.account === acc).map(l => [l.class, l]));
   for (const c of classList) {
     if (byClass.has(c)) {
-      byClass.get(c).best_level = Math.max(byClass.get(c).best_level || 0, level);
+      byClass.get(c).best_level = level;
     } else {
       const row = { account: acc, class: c, best_level: level, best_ms: 0, best_finale: 0, _raw: null };
       state.levels.push(row);
@@ -538,9 +538,8 @@ function setHighestCleared(level){
     }
   }
   // Character stats best run level
-  (state.charStats || []).forEach(s => {
-    if ((s.best_level || 0) < level) s.best_level = level;
-  });
+  (state.charStats || []).forEach(s => { s.best_level = level; });
+  // Also update any other accounts' class-0 only if same as main — skip ironman special ids
   return level;
 }
 
@@ -671,8 +670,6 @@ function collectEdits(){
   a.determination = Math.min(5, Math.max(0, toNum(($("determination") || {}).value)));
   if (state.epicLuck) state.epicLuck.misses = toNum(($("epicLuck") || {}).value);
   if (state.board) state.board.show = toNum(($("showOnBoard") || {}).value);
-  const hc = $("highestCleared");
-  if (hc && hc.value !== "" && hc.value != null) setHighestCleared(toNum(hc.value));
 
   document.querySelectorAll("[data-char-i]").forEach(inp => {
     const i = +inp.getAttribute("data-char-i"); const f = inp.getAttribute("data-f");
@@ -719,6 +716,10 @@ function collectEdits(){
   document.querySelectorAll("[data-starter-i]").forEach(inp => {
     const i = +inp.getAttribute("data-starter-i"); if (state.starters[i]) state.starters[i].weapon = toNum(inp.value);
   });
+
+  // Apply highest cleared LAST so level-table inputs cannot overwrite it
+  const hc = $("highestCleared");
+  if (hc && hc.value !== "" && hc.value != null) setHighestCleared(toNum(hc.value));
 }
 
 function buildModifiedSql(){
