@@ -186,6 +186,14 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
           <div class="field"><label><img class="field-icon" src="https://wow.zamimg.com/images/wow/icons/small/spell_holy_stoicism.jpg" alt="">Determination (0–5)</label><input type="number" id="determination" min="0" max="5"></div>
           <div class="field"><label>Epic luck misses</label><input type="number" id="epicLuck" min="0"></div>
           <div class="field"><label>Show on board</label><select id="showOnBoard"><option value="0">No</option><option value="1">Yes</option></select></div>
+          <div class="field"><label><img class="field-icon" src="https://wow.zamimg.com/images/wow/icons/small/achievement_level_60.jpg" alt="">Highest cleared level</label><input type="number" id="highestCleared" min="0" step="1" title="bonk_account_level best_level — unlocks Normal/Heroic/Mythic"><span class="hint">Opens next difficulty (cleared + 1)</span></div>
+        </div>
+        <div class="quick" style="margin-top:.35rem">
+          <button type="button" data-set-level="10">Set 10</button>
+          <button type="button" data-set-level="20">Set 20</button>
+          <button type="button" data-set-level="40">Set 40</button>
+          <button type="button" data-set-level="50">Set 50</button>
+          <button type="button" data-set-level="100">Set 100</button>
         </div>
         <div class="quick">
           <button type="button" data-set="gold" data-val="1000000">+100g</button>
@@ -502,6 +510,40 @@ function parseSql(sql){
   }));
 }
 
+
+function getHighestCleared(){
+  const acc = (state.bonkAccount && state.bonkAccount.account) || 1;
+  let best = 0;
+  (state.levels || []).forEach(l => {
+    if (l.account === acc && (l.best_level || 0) > best) best = l.best_level || 0;
+  });
+  (state.charStats || []).forEach(s => {
+    if ((s.best_level || 0) > best) best = s.best_level || 0;
+  });
+  return best;
+}
+function setHighestCleared(level){
+  level = Math.max(0, Math.floor(Number(level) || 0));
+  const acc = (state.bonkAccount && state.bonkAccount.account) || 1;
+  // Account-wide row (class 0) drives unlocks; also raise every class row so UI is consistent
+  const classList = [0,1,2,3,4,5,6,7,8,9,11];
+  const byClass = new Map((state.levels || []).filter(l => l.account === acc).map(l => [l.class, l]));
+  for (const c of classList) {
+    if (byClass.has(c)) {
+      byClass.get(c).best_level = Math.max(byClass.get(c).best_level || 0, level);
+    } else {
+      const row = { account: acc, class: c, best_level: level, best_ms: 0, best_finale: 0, _raw: null };
+      state.levels.push(row);
+      byClass.set(c, row);
+    }
+  }
+  // Character stats best run level
+  (state.charStats || []).forEach(s => {
+    if ((s.best_level || 0) < level) s.best_level = level;
+  });
+  return level;
+}
+
 function renderEditor(){
   const a = state.bonkAccount || {};
   setVal("gold", a.gold);
@@ -510,6 +552,7 @@ function renderEditor(){
   setVal("determination", a.determination);
   setVal("epicLuck", (state.epicLuck && state.epicLuck.misses) || 0);
   setVal("showOnBoard", String((state.board && state.board.show) || 0));
+  setVal("highestCleared", getHighestCleared());
   updateGoldPretty();
   setText("charCount", "(" + (state.characters || []).length + ")");
   setText("questCount", "(" + (state.quests || []).length + ")");
@@ -628,6 +671,8 @@ function collectEdits(){
   a.determination = Math.min(5, Math.max(0, toNum(($("determination") || {}).value)));
   if (state.epicLuck) state.epicLuck.misses = toNum(($("epicLuck") || {}).value);
   if (state.board) state.board.show = toNum(($("showOnBoard") || {}).value);
+  const hc = $("highestCleared");
+  if (hc && hc.value !== "" && hc.value != null) setHighestCleared(toNum(hc.value));
 
   document.querySelectorAll("[data-char-i]").forEach(inp => {
     const i = +inp.getAttribute("data-char-i"); const f = inp.getAttribute("data-f");
@@ -956,6 +1001,22 @@ function doReload(){
 if ($("btnReload")) $("btnReload").onclick = doReload;
 if ($("btnReloadTop")) $("btnReloadTop").onclick = doReload;
 if ($("btnExportTop") && $("btnExport")) $("btnExportTop").onclick = () => $("btnExport").click();
+
+document.querySelectorAll("[data-set-level]").forEach(btn => {
+  btn.onclick = () => {
+    const lvl = toNum(btn.getAttribute("data-set-level"));
+    setHighestCleared(lvl);
+    setVal("highestCleared", lvl);
+    setStatus("Highest cleared level set to " + lvl + " (all classes). Export to apply.", "ok");
+  };
+});
+if ($("highestCleared")) {
+  $("highestCleared").onchange = () => {
+    const lvl = setHighestCleared(toNum($("highestCleared").value));
+    setVal("highestCleared", lvl);
+  };
+}
+
 
 </script>
 </body>
