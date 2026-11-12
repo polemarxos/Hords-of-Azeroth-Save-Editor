@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hordes of Azeroth — Save Editor</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{
   --bg:#0a0d12;--bg-elevated:#10151e;--panel:#141b27;--panel-hover:#1a2332;--panel2:#1c2636;
@@ -140,12 +141,17 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
       <div class="icon"><img src="https://raw.githubusercontent.com/jonhaldors/hordes-of-azeroth/main/.github/images/launcher.jpg" alt=""></div>
       <h2>Load save</h2>
     </div>
-    <div class="drop" id="dropZone">
+        <div class="drop" id="dropZone" role="button" tabindex="0">
       <div class="drop-icon"><img src="https://raw.githubusercontent.com/jonhaldors/hordes-of-azeroth/main/.github/images/banner.jpg" alt=""></div>
       <p><strong>Drop</strong> your launcher backup <code>.zip</code> here</p>
-      <p>or click to choose (zip or <code>characters and accounts.sql</code>)</p>
+      <p class="muted">or use the button below</p>
+      <div style="margin-top:.75rem">
+        <button type="button" class="btn" id="btnChooseFile" style="display:inline-flex;cursor:pointer">
+          Choose zip / sql…
+        </button>
+      </div>
     </div>
-    <input type="file" id="fileInput" accept=".zip,.sql,application/zip,text/plain">
+    <input type="file" id="fileInput" accept=".zip,.sql,application/zip,text/plain" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden">
     <p class="hint">After editing, export a zip → launcher <strong>···</strong> → Restore a backup. Always keep your original backup.</p>
   </div>
   <div id="editor">
@@ -162,15 +168,14 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
       <button type="button" id="bulkMaxLevels"><img src="https://wow.zamimg.com/images/wow/icons/small/achievement_bg_killxflags_ab.jpg" alt=""> Boost best levels &amp; XP</button>
       <button type="button" id="bulkUnlockDifficulties"><img src="https://wow.zamimg.com/images/wow/icons/small/achievement_boss_ragnaros.jpg" alt=""> Unlock Normal / Heroic / Mythic</button>
       <button type="button" id="bulkUnlockAppearances"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_chest_cloth_17.jpg" alt=""> Unlock all appearances</button>
+      <button type="button" id="bulkFullGearBackpack"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_misc_bag_10.jpg" alt=""> Full Gear to Backpack</button>
     </div>
     <div class="tabs">
       <button class="tab active" data-tab="account"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_misc_grouplooking.jpg" alt=""> Account</button>
       <button class="tab" data-tab="characters"><img src="https://wow.zamimg.com/images/wow/icons/small/spell_holy_prayerofspirit.jpg" alt=""> Characters</button>
+      <button class="tab" data-tab="gear"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_sword_27.jpg" alt=""> Gear</button>
       <button class="tab" data-tab="quests"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_misc_book_11.jpg" alt=""> Quests</button>
       <button class="tab" data-tab="levels"><img src="https://wow.zamimg.com/images/wow/icons/small/achievement_level_60.jpg" alt=""> Levels</button>
-      <button class="tab" data-tab="upgrades"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_misc_gem_01.jpg" alt=""> Upgrades</button>
-      <button class="tab" data-tab="appearances"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_chest_cloth_17.jpg" alt=""> Appearances</button>
-      <button class="tab" data-tab="misc"><img src="https://wow.zamimg.com/images/wow/icons/small/inv_misc_gear_01.jpg" alt=""> Misc</button>
     </div>
     <div class="tab-panel active" id="tab-account">
       <div class="card">
@@ -186,7 +191,6 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
           <div class="field"><label><img class="field-icon" src="https://wow.zamimg.com/images/wow/icons/small/spell_holy_stoicism.jpg" alt="">Determination (0–5)</label><input type="number" id="determination" min="0" max="5"></div>
           <div class="field"><label>Epic luck misses</label><input type="number" id="epicLuck" min="0"></div>
           <div class="field"><label>Show on board</label><select id="showOnBoard"><option value="0">No</option><option value="1">Yes</option></select></div>
-          <div class="field"><label><img class="field-icon" src="https://wow.zamimg.com/images/wow/icons/small/achievement_level_60.jpg" alt="">Highest cleared level</label><input type="number" id="highestCleared" min="0" step="1" title="bonk_account_level best_level — unlocks Normal/Heroic/Mythic"><span class="hint">Opens next difficulty (cleared + 1)</span></div>
         </div>
         <div class="quick" style="margin-top:.35rem">
           <button type="button" data-set-level="10">Set 10</button>
@@ -213,6 +217,30 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
         <div id="charList"></div>
       </div>
     </div>
+
+    <div class="tab-panel" id="tab-gear">
+      <div class="card">
+        <div class="card-head">
+          <div class="icon"><img src="https://wow.zamimg.com/images/wow/icons/medium/inv_sword_25.jpg" alt=""></div>
+          <h2>Legendary weapons</h2>
+        </div>
+        <p class="hint" style="margin:0 0 .6rem">
+          All 8 HoA legendary weapon kinds. Item entry is always <strong>tier 10</strong> (game max).
+          <strong>Gear level</strong> is written to <code>bonk_item_found.tier</code> (no max 10). <strong>Full Gear to Backpack</strong> uses account best run level.
+        </p>
+        <div class="row" style="margin-bottom:.6rem">
+          <div class="field"><label>Character GUID</label><input type="number" id="legendCharGuid" min="1" value="1"></div>
+          <div class="field"><label>Gear level</label><input type="number" id="legendGearLevel" min="1" max="9999" value="10" title="Found-gear tier (bonk_item_found.tier) — drives item level; can exceed 10"></div>
+          <button type="button" class="btn secondary" id="btnGearLevelFromBest">Use best run level</button>
+        </div>
+        <p class="hint" style="margin:0 0 .6rem">
+          Entries are always <strong>tier 10</strong>. Off hand: Shield (kind 31) and Off-hand held (kind 32). Accessories: Cloak 33, Necklace 34, Ring 35.
+        </p>
+        <div class="scroll" id="legendTable"></div>
+        <h3 style="margin-top:1rem">Epic gear (all kinds · T10)</h3>
+        <div class="scroll" id="epicTable"></div>
+      </div>
+    </div>
     <div class="tab-panel" id="tab-quests">
       <div class="card">
         <div class="card-head">
@@ -235,44 +263,6 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
         <h3>Level best records</h3><div class="scroll" id="levelBestTable"></div>
       </div>
     </div>
-    <div class="tab-panel" id="tab-upgrades">
-      <div class="card">
-        <div class="card-head">
-          <div class="icon"><img src="https://wow.zamimg.com/images/wow/icons/medium/inv_misc_gem_01.jpg" alt=""></div>
-          <h2>Upgrades &amp; talents</h2>
-        </div>
-        <h3>Account upgrades</h3><div id="upgradeTable"></div>
-        <h3>Talent ranks</h3><div id="talentTable"></div>
-        <h3>Mastery preset active slot</h3><div id="presetActiveTable"></div>
-      </div>
-    </div>
-    <div class="tab-panel" id="tab-appearances">
-      <div class="card">
-        <div class="card-head">
-          <div class="icon"><img src="https://wow.zamimg.com/images/wow/icons/medium/inv_chest_cloth_17.jpg" alt=""></div>
-          <h2>Unlocked appearances <span class="count" id="appCount"></span></h2>
-        </div>
-        <div class="row" style="margin-bottom:.6rem">
-          <div class="field"><label>Add entry ID</label><input type="number" id="newAppEntry" placeholder="930000+"></div>
-          <button type="button" class="btn secondary" id="btnAddApp">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Add
-          </button>
-        </div>
-        <div class="scroll" id="appTable"></div>
-      </div>
-    </div>
-    <div class="tab-panel" id="tab-misc">
-      <div class="card">
-        <div class="card-head">
-          <div class="icon"><img src="https://wow.zamimg.com/images/wow/icons/medium/inv_misc_gear_01.jpg" alt=""></div>
-          <h2>Misc</h2>
-        </div>
-        <h3>Disabled rewards</h3><div id="disabledTable"></div>
-        <h3>Found gear (item_guid)</h3><div class="scroll" id="itemFoundTable"></div>
-        <h3>Starters</h3><div id="starterTable"></div>
-      </div>
-    </div>
     <div class="actions">
       <button type="button" class="btn" id="btnExport">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -288,7 +278,16 @@ footer{text-align:center;color:var(--muted);font-size:.76rem;padding:1.5rem;bord
 </div>
 <footer>Offline tool · edits stay in your browser · restore via launcher ··· menu</footer>
 <script>
-
+window.onerror = function(msg, src, line, col, err){
+  try {
+    var el = document.getElementById("status");
+    if (el) {
+      el.style.display = "flex";
+      el.className = "status err";
+      el.textContent = "Script error: " + msg + " (line " + line + ")";
+    }
+  } catch(e) {}
+};
 function $(id){ return document.getElementById(id); }
 function setHtml(id, html){ const el = $(id); if (el) el.innerHTML = html; return el; }
 function setText(id, text){ const el = $(id); if (el) el.textContent = text; return el; }
@@ -329,7 +328,7 @@ let state = {
   bonkAccount:null, epicLuck:null, board:null,
   characters:[], charStats:[], levels:[], mastery:[], masteryNodes:[], levelBests:[],
   upgrades:[], talents:[], quests:[], appearances:[], charAppearances:[],
-  disabled:[], itemFound:[], starters:[], presetActive:[]
+  disabled:[], itemFound:[], starters:[], presetActive:[], inventory:[], itemInstances:[], mails:[], mailItems:[]
 };
 
 function copperToPretty(c){
@@ -391,6 +390,23 @@ function unquote(v){
 }
 function toNum(v){ const n = Number(unquote(v)); return Number.isFinite(n) ? n : 0; }
 
+function sqlQuote(s){
+  return "'" + String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+}
+function ensureInsert(sql, table, tuples){
+  if (!tuples || !tuples.length) return sql;
+  const hasInsert = new RegExp("INSERT INTO `" + table + "` VALUES", "i").test(sql);
+  if (hasInsert) return replaceInsert(sql, table, tuples);
+  const body = tuples.map(t => "(" + t.join(",") + ")").join(",\n");
+  const insert = "INSERT INTO `" + table + "` VALUES\n" + body + ";\n";
+  const dis = new RegExp("(/\\*!40000 ALTER TABLE `" + table + "` DISABLE KEYS \\*/;\\s*)", "i");
+  if (dis.test(sql)) return sql.replace(dis, "$1" + insert);
+  const lock = new RegExp("(LOCK TABLES `" + table + "` WRITE;\\s*)", "i");
+  if (lock.test(sql)) return sql.replace(lock, "$1" + insert);
+  const en = new RegExp("(/\\*!40000 ALTER TABLE `" + table + "` ENABLE KEYS \\*/;)", "i");
+  if (en.test(sql)) return sql.replace(en, insert + "$1");
+  return sql + "\n" + insert;
+}
 function replaceInsert(sql, table, tuples){
   const re = new RegExp("(INSERT INTO `" + table + "` VALUES\\s*)([\\s\\S]*?)(;)", "i");
   const m = sql.match(re);
@@ -401,33 +417,47 @@ function replaceInsert(sql, table, tuples){
 }
 
 async function loadFile(file){
-  setStatus("Reading " + file.name + "…", "info");
+  if (!file) { setStatus("No file selected.", "err"); return; }
+  setStatus("Reading " + file.name + " (" + Math.round((file.size||0)/1024) + " KB)…", "info");
   state.zip = null; state.otherFiles = {}; state.sqlText = null;
   try {
-    if (file.name.toLowerCase().endsWith(".zip") || file.type === "application/zip") {
+    const name = (file.name || "").toLowerCase();
+    const isZip = name.endsWith(".zip") || (file.type && file.type.indexOf("zip") >= 0);
+    if (isZip) {
+      if (typeof JSZip === "undefined") {
+        throw new Error("JSZip library failed to load (network/CDN blocked). Try another browser or allow cdnjs/jsdelivr.");
+      }
+      setStatus("Unpacking zip…", "info");
       const buf = await file.arrayBuffer();
       const zip = await JSZip.loadAsync(buf);
       state.zip = zip;
       let sqlEntry = null;
-      for (const name of Object.keys(zip.files)) {
-        const e = zip.files[name];
-        if (e.dir) continue;
-        const base = name.split("/").pop();
-        if (base === "characters and accounts.sql" || base.endsWith(".sql")) {
-          sqlEntry = e; state.sqlPath = name;
+      const names = Object.keys(zip.files);
+      for (const path of names) {
+        const e = zip.files[path];
+        if (!e || e.dir) continue;
+        const base = path.split("/").pop();
+        if (base === "characters and accounts.sql" || /\.sql$/i.test(base)) {
+          sqlEntry = e; state.sqlPath = path;
         } else {
-          state.otherFiles[name] = await e.async("uint8array");
+          try { state.otherFiles[path] = await e.async("uint8array"); } catch (_) {}
         }
       }
-      if (!sqlEntry) throw new Error("No .sql file found inside the zip.");
+      if (!sqlEntry) throw new Error("No .sql file found inside the zip. Files: " + names.slice(0, 12).join(", "));
+      setStatus("Reading SQL from zip…", "info");
       state.sqlText = await sqlEntry.async("string");
     } else {
+      setStatus("Reading SQL file…", "info");
       state.sqlText = await file.text();
       state.sqlPath = "characters and accounts.sql";
     }
+    if (!state.sqlText || state.sqlText.length < 50) throw new Error("SQL content is empty or too short.");
+    setStatus("Parsing save (" + state.sqlText.length + " chars)…", "info");
     parseSql(state.sqlText);
     if (!state.bonkAccount) throw new Error("Could not parse bonk_account from SQL.");
-    renderEditor();
+    setStatus("Building editor UI…", "info");
+    try { renderEditor(); }
+    catch (re) { console.error(re); throw new Error("UI render failed: " + (re && re.message ? re.message : re)); }
     const ed = $("editor"); if (ed) ed.style.display = "block";
     const loadCard = $("loadCard"); if (loadCard) loadCard.style.display = "none";
     const ta = $("topActions"); if (ta) ta.style.display = "flex";
@@ -439,10 +469,17 @@ async function loadFile(file){
       (state.appearances || []).length + " appearances",
       "gold=" + copperToPretty((state.bonkAccount && state.bonkAccount.gold) || 0)
     ].join(" · ");
-    setStatus("Ready — " + summary + ". Use bulk unlocks or edit tabs, then Export zip and restore in the launcher.", "ok");
+    try {
+      const cg = (state.characters && state.characters[0] && state.characters[0].guid) || 1;
+      setVal("legendCharGuid", cg);
+      const best = bestRunLevelForChar(cg);
+      setVal("legendGearLevel", best || 1);
+      renderLegendaryGear();
+    } catch (e) { console.warn(e); }
+    setStatus("Ready — " + summary + ". Edit tabs, then Export zip and restore in the launcher.", "ok");
   } catch (err) {
     console.error(err);
-    setStatus("Failed: " + err.message, "err");
+    setStatus("Failed: " + (err && err.message ? err.message : String(err)), "err");
   }
 }
 
@@ -508,6 +545,412 @@ function parseSql(sql){
   state.presetActive = parseValuesBlock(sql, "bonk_account_mastery_preset_active").map(t => ({
     account:toNum(t[0]), class:toNum(t[1]), slot:toNum(t[2]), _raw:t
   }));
+
+  state.inventory = parseValuesBlock(sql, "character_inventory").map(t => ({
+    guid: toNum(t[0]), bag: toNum(t[1]), slot: toNum(t[2]), item_guid: toNum(t[3]), item_id: toNum(t[4]), _raw: t
+  }));
+  state.itemInstances = parseValuesBlock(sql, "item_instance").map(t => ({
+    guid: toNum(t[0]), item_id: toNum(t[1]), owner_guid: toNum(t[2]), _raw: t
+  }));
+  state.mails = parseValuesBlock(sql, "mail").map(t => ({
+    id: toNum(t[0]), message_type: toNum(t[1]), stationery: toNum(t[2]), mail_template_id: toNum(t[3]),
+    sender_guid: toNum(t[4]), receiver_guid: toNum(t[5]), subject: unquote(t[6]), item_text_id: toNum(t[7]),
+    has_items: toNum(t[8]), expire_time: toNum(t[9]), deliver_time: toNum(t[10]), money: toNum(t[11]),
+    cod: toNum(t[12]), checked: toNum(t[13]), _raw: t
+  }));
+  state.mailItems = parseValuesBlock(sql, "mail_items").map(t => ({
+    mail_id: toNum(t[0]), item_guid: toNum(t[1]), item_id: toNum(t[2]), receiver_guid: toNum(t[3]), _raw: t
+  }));
+
+
+}
+
+
+
+const EQUIP_SLOTS = {
+  0:"Head",1:"Neck",2:"Shoulders",3:"Shirt",4:"Chest",5:"Waist",6:"Legs",7:"Feet",
+  8:"Wrists",9:"Hands",10:"Finger 1",11:"Finger 2",12:"Trinket 1",13:"Trinket 2",
+  14:"Back",15:"Main Hand",16:"Off Hand",17:"Ranged",18:"Tabard"
+};
+const QUALITY_NAMES = {1:"White",2:"Green",3:"Blue",4:"Epic"};
+const GEAR_FIRST = 930000, GEAR_KINDS = 44, GEAR_QUALITIES = 4, GEAR_TIERS = 10, GEAR_LOWEST_Q = 1;
+const LEGENDARY_FIRST = 932000, LEGENDARY_KINDS = 8; // weapons / specials
+function readGearEntry(entry){
+  entry = Number(entry)||0;
+  if (entry >= LEGENDARY_FIRST && entry < LEGENDARY_FIRST + LEGENDARY_KINDS * GEAR_TIERS) {
+    const index = entry - LEGENDARY_FIRST;
+    return { kind: index / GEAR_TIERS | 0, quality: 5, tier: index % GEAR_TIERS + 1, legendary: true };
+  }
+  if (entry < GEAR_FIRST || entry >= GEAR_FIRST + GEAR_KINDS * GEAR_QUALITIES * GEAR_TIERS) return null;
+  const index = entry - GEAR_FIRST;
+  const tier = index % GEAR_TIERS + 1;
+  const quality = GEAR_LOWEST_Q + Math.floor(index / GEAR_TIERS) % GEAR_QUALITIES;
+  const kind = Math.floor(index / (GEAR_TIERS * GEAR_QUALITIES));
+  return { kind, quality, tier, legendary: false };
+}
+function makeGearEntry(kind, quality, tier){
+  kind = Math.max(0, Math.min(GEAR_KINDS-1, Number(kind)||0));
+  quality = Math.max(GEAR_LOWEST_Q, Math.min(GEAR_LOWEST_Q+GEAR_QUALITIES-1, Number(quality)||1));
+  tier = Math.max(1, Math.min(GEAR_TIERS, Number(tier)||1));
+  return GEAR_FIRST + ((kind * GEAR_QUALITIES) + quality - GEAR_LOWEST_Q) * GEAR_TIERS + tier - 1;
+}
+function makeLegendaryEntry(kind, tier){
+  kind = Math.max(0, Math.min(LEGENDARY_KINDS-1, Number(kind)||0));
+  tier = Math.max(1, Math.min(GEAR_TIERS, Number(tier)||1));
+  return LEGENDARY_FIRST + kind * GEAR_TIERS + tier - 1;
+}
+function bumpGearTier(entry, delta){
+  const g = readGearEntry(entry);
+  if (!g) return entry;
+  if (g.legendary) return makeLegendaryEntry(g.kind, g.tier + (delta||1));
+  return makeGearEntry(g.kind, g.quality, g.tier + (delta||1));
+}
+function setGearTierQuality(entry, tier, quality){
+  const g = readGearEntry(entry);
+  if (!g) return entry;
+  if (g.legendary || quality === 5) return makeLegendaryEntry(g.kind % LEGENDARY_KINDS, tier);
+  return makeGearEntry(g.kind, quality || g.quality, tier);
+}
+function optionsForSlot(slot, currentEntry){
+  // Build list of candidate entries for dropdown: keep kind from current if HoA, else suggest common kinds
+  const g = readGearEntry(currentEntry);
+  const opts = [];
+  if (g && !g.legendary) {
+    for (let q = 1; q <= 4; q++)
+      for (let t = 1; t <= GEAR_TIERS; t++)
+        opts.push({ entry: makeGearEntry(g.kind, q, t), label: QUALITY_NAMES[q] + " T" + t });
+    // legendary variants only meaningful for weapon-ish kinds
+    if (g.kind >= 24)
+      for (let t = 1; t <= GEAR_TIERS; t++)
+        opts.push({ entry: makeLegendaryEntry(Math.min(g.kind - 24, LEGENDARY_KINDS-1), t), label: "Legendary T" + t });
+  } else if (g && g.legendary) {
+    for (let t = 1; t <= GEAR_TIERS; t++)
+      opts.push({ entry: makeLegendaryEntry(g.kind, t), label: "Legendary T" + t });
+    for (let q = 1; q <= 4; q++)
+      for (let t = 1; t <= GEAR_TIERS; t++)
+        opts.push({ entry: makeGearEntry(24 + g.kind, q, t), label: QUALITY_NAMES[q] + " T" + t });
+  }
+  return opts;
+}
+function foundFor(itemGuid){
+  return (state.itemFound || []).find(f => f.item_guid === itemGuid || f.guid === itemGuid);
+}
+function setItemEntry(itemGuid, entry){
+  entry = toNum(entry);
+  const inv = (state.inventory || []).find(x => x.item_guid === itemGuid);
+  const inst = (state.itemInstances || []).find(x => x.guid === itemGuid);
+  if (inv) inv.item_id = entry;
+  if (inst) inst.item_id = entry;
+}
+
+
+
+const LEGENDARY_WEAPONS = [
+  { kind: 0, name: "Legendary Sword", icon: "inv_sword_25", type: "One-hand sword" },
+  { kind: 1, name: "Legendary Mace", icon: "inv_mace_13", type: "One-hand mace" },
+  { kind: 2, name: "Legendary Dagger", icon: "inv_weapon_shortblade_05", type: "Dagger" },
+  { kind: 3, name: "Legendary Axe", icon: "inv_axe_09", type: "One-hand axe" },
+  { kind: 4, name: "Legendary Staff", icon: "inv_staff_13", type: "Staff" },
+  { kind: 5, name: "Legendary Polearm", icon: "inv_spear_08", type: "Polearm" },
+  { kind: 6, name: "Legendary Bow", icon: "inv_weapon_bow_08", type: "Bow" },
+  { kind: 7, name: "Legendary Gun", icon: "inv_weapon_rifle_07", type: "Gun" }
+];
+
+// Kind layout from BonkMgr.h + gen-gear.py
+// FIRST_WEAPON=24, FIRST_ACCESSORY=33, FIRST_TRINKET=36, KINDS=44
+const ARMOR_SLOT_NAMES = ["Head","Shoulders","Chest","Waist","Legs","Feet","Wrists","Hands"];
+const ARMOR_SLOT_ICONS = ["inv_helmet_01","inv_shoulder_02","inv_chest_cloth_01","inv_belt_02","inv_pants_01","inv_boots_01","inv_bracer_07","inv_gauntlets_05"];
+const ARMOR_TYPE_NAMES = ["Cloth","Leather","Mail"];
+// kinds 24-32 weapons (incl. shield + off-hand); 33-35 accessories; 36-43 trinkets
+const WEAPON_META = [
+  { kind: 24, name: "One-Hand Sword / Axe", icon: "inv_sword_04", type: "Main hand" },
+  { kind: 25, name: "One-Hand Mace", icon: "inv_mace_01", type: "Main hand" },
+  { kind: 26, name: "Dagger", icon: "inv_weapon_shortblade_05", type: "Main hand" },
+  { kind: 27, name: "Two-Hand Sword / Axe", icon: "inv_sword_07", type: "Two-hand" },
+  { kind: 28, name: "Staff / Two-Hand Mace", icon: "inv_staff_07", type: "Two-hand" },
+  { kind: 29, name: "Polearm", icon: "inv_spear_05", type: "Two-hand" },
+  { kind: 30, name: "Bow / Gun / Wand", icon: "inv_weapon_bow_05", type: "Ranged" },
+  { kind: 31, name: "Shield", icon: "inv_shield_06", type: "Off hand" },
+  { kind: 32, name: "Off-hand (held)", icon: "inv_misc_orb_01", type: "Off hand" }
+];
+const ACCESSORY_META = [
+  { kind: 33, name: "Cloak", icon: "inv_misc_cape_08", type: "Back" },
+  { kind: 34, name: "Necklace", icon: "inv_jewelry_necklace_07", type: "Neck" },
+  { kind: 35, name: "Ring", icon: "inv_jewelry_ring_12", type: "Finger" }
+];
+const TRINKET_META = [
+  { kind: 36, name: "Trinket 1", icon: "inv_jewelry_trinket_01", type: "Trinket" },
+  { kind: 37, name: "Trinket 2", icon: "inv_jewelry_trinket_02", type: "Trinket" },
+  { kind: 38, name: "Trinket 3", icon: "inv_misc_orb_02", type: "Trinket" },
+  { kind: 39, name: "Trinket 4", icon: "inv_misc_gem_pearl_01", type: "Trinket" },
+  { kind: 40, name: "Trinket 5", icon: "inv_misc_gem_01", type: "Trinket" },
+  { kind: 41, name: "Trinket 6", icon: "inv_misc_gem_02", type: "Trinket" },
+  { kind: 42, name: "Trinket 7", icon: "inv_misc_gem_03", type: "Trinket" },
+  { kind: 43, name: "Trinket 8", icon: "inv_misc_stonetablet_05", type: "Trinket" }
+];
+function buildEpicGearList(){
+  const list = [];
+  for (let type = 0; type < 3; type++) {
+    for (let slot = 0; slot < 8; slot++) {
+      const kind = type * 8 + slot;
+      list.push({
+        kind,
+        name: ARMOR_TYPE_NAMES[type] + " " + ARMOR_SLOT_NAMES[slot],
+        type: ARMOR_TYPE_NAMES[type] + " · " + ARMOR_SLOT_NAMES[slot],
+        icon: ARMOR_SLOT_ICONS[slot]
+      });
+    }
+  }
+  WEAPON_META.forEach(m => list.push({ kind: m.kind, name: m.name, type: m.type, icon: m.icon }));
+  ACCESSORY_META.forEach(m => list.push({ kind: m.kind, name: m.name, type: m.type, icon: m.icon }));
+  TRINKET_META.forEach(m => list.push({ kind: m.kind, name: m.name, type: m.type, icon: m.icon }));
+  return list;
+}
+const EPIC_GEAR = buildEpicGearList();
+// Quest display: real names live in world DB (bonk_quest). Use stable category/icon by id.
+const QUEST_CATEGORIES = [
+  { key: "slayer", name: "Slayer", icon: "ability_dualwield" },
+  { key: "victory", name: "Victory", icon: "achievement_bg_winwsg" },
+  { key: "mastery", name: "Mastery", icon: "spell_holy_spiritualguidence" },
+  { key: "challenge", name: "Challenge", icon: "achievement_boss_ragnaros" },
+  { key: "discovery", name: "Discovery", icon: "inv_misc_map_01" },
+  { key: "collection", name: "Collection", icon: "inv_misc_bag_10" }
+];
+function questDisplay(questId){
+  const id = toNum(questId);
+  const cat = QUEST_CATEGORIES[(id - 1) % QUEST_CATEGORIES.length];
+  return {
+    id,
+    name: "Quest #" + id,
+    category: cat.name,
+    icon: "https://wow.zamimg.com/images/wow/icons/large/" + cat.icon + ".jpg"
+  };
+}
+
+// Entry IDs at fixed tier 10: 932009, 932019, ... 932079
+
+
+function nextItemGuid(){
+  let max = 0;
+  (state.itemInstances || []).forEach(i => { if (i.guid > max) max = i.guid; });
+  (state.inventory || []).forEach(i => { if (i.item_guid > max) max = i.item_guid; });
+  return max + 1;
+}
+
+function nextBackpackSlot(charGuid){
+  charGuid = toNum(charGuid) || 1;
+  // Collect used bag-0 slots for this character
+  const used = new Set();
+  let maxSlot = 22;
+  (state.inventory || []).forEach(r => {
+    if (toNum(r.guid) !== charGuid || toNum(r.bag) !== 0) return;
+    const s = toNum(r.slot);
+    used.add(s);
+    if (s > maxSlot) maxSlot = s;
+  });
+  // Prefer classic backpack range 23..(23+112-1)
+  const BACKPACK_START = 23;
+  const BACKPACK_SIZE = 112;
+  for (let s = BACKPACK_START; s < BACKPACK_START + BACKPACK_SIZE; s++) {
+    if (!used.has(s)) return s;
+  }
+  // Then any free slot from 23 up to maxSlot
+  for (let s = BACKPACK_START; s <= maxSlot; s++) {
+    if (s <= 18) continue; // skip equipment
+    if (!used.has(s)) return s;
+  }
+  // Always succeed: append after highest used slot (save-editor force place)
+  let s = Math.max(maxSlot + 1, BACKPACK_START);
+  while (used.has(s) || s <= 18) s++;
+  return s;
+}
+function countFreeBackpackSlots(charGuid){
+  charGuid = toNum(charGuid) || 1;
+  const BACKPACK_START = 23, BACKPACK_SIZE = 112;
+  const used = new Set();
+  (state.inventory || []).forEach(r => {
+    if (toNum(r.guid) === charGuid && toNum(r.bag) === 0) used.add(toNum(r.slot));
+  });
+  let free = 0;
+  for (let s = BACKPACK_START; s < BACKPACK_START + BACKPACK_SIZE; s++) if (!used.has(s)) free++;
+  // If normal range full, still report "overflow available"
+  if (free === 0) free = 999; // editor will append slots
+  return free;
+}
+
+function bestRunLevelForChar(charGuid){
+  const st = (state.charStats || []).find(s => s.guid === charGuid);
+  if (st && st.best_level) return st.best_level;
+  return getHighestCleared() || 1;
+}
+
+function makeItemInstanceRaw(guid, itemId, ownerGuid){
+  // Match dump shape: guid, item_id, owner, creator, gift, count, duration, charges, flags, enchants, rnd, dura, text, generated
+  return [
+    String(guid), String(itemId), String(ownerGuid), "0", "0", "1", "0",
+    "'0 0 0 0 0 '", "1",
+    "'0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 '",
+    "0", "0", "0", "0"
+  ];
+}
+
+function addGearToBackpack(entry, gearLevel, charGuid){
+  charGuid = toNum(charGuid) || 1;
+  gearLevel = Math.max(1, Math.floor(toNum(gearLevel) || 1));
+  entry = toNum(entry);
+  if (!entry) return { ok: false, reason: "bad entry" };
+  const slot = nextBackpackSlot(charGuid);
+  if (slot == null) return { ok: false, reason: "no free slot" };
+  const ig = nextItemGuid();
+  if (!state.itemInstances) state.itemInstances = [];
+  if (!state.inventory) state.inventory = [];
+  if (!state.itemFound) state.itemFound = [];
+  const instRaw = makeItemInstanceRaw(ig, entry, charGuid);
+  state.itemInstances.push({ guid: ig, item_id: entry, owner_guid: charGuid, _raw: instRaw });
+  const invRaw = [String(charGuid), "0", String(slot), String(ig), String(entry)];
+  state.inventory.push({ guid: charGuid, bag: 0, slot: slot, item_guid: ig, item_id: entry, _raw: invRaw });
+  state.itemFound.push({
+    item_guid: ig, tier: gearLevel, line1_effect: 255, line1_roll: 0, line2_effect: 255, line2_roll: 0,
+    rerolls: 0, reroll_line: 255, upgrades: 0, season: 1, _raw: null
+  });
+  return { ok: true, ig, entry, slot, gearLevel };
+}
+function addLegendaryToBackpack(kind, gearLevel, charGuid){
+  kind = Math.max(0, Math.min(LEGENDARY_KINDS - 1, toNum(kind) || 0));
+  const entry = makeLegendaryEntry(kind, 10);
+  const res = addGearToBackpack(entry, gearLevel, charGuid);
+  return res && res.ok ? Object.assign(res, { kind }) : false;
+}
+
+function renderLegendaryGear(){
+  const el = $("legendTable");
+  if (el) {
+    let h = `<table><thead><tr><th></th><th>Name</th><th>Type</th><th>Kind</th><th>Entry (T10)</th><th></th></tr></thead><tbody>`;
+    (typeof LEGENDARY_WEAPONS !== "undefined" ? LEGENDARY_WEAPONS : []).forEach(w => {
+      const entry = makeLegendaryEntry(w.kind, 10);
+      const icon = "https://wow.zamimg.com/images/wow/icons/large/" + w.icon + ".jpg";
+      h += `<tr>
+        <td><img src="${icon}" alt="" width="36" height="36" style="border-radius:4px;border:1px solid #5a3a1a" onerror="this.style.opacity=.3"></td>
+        <td><strong>${w.name}</strong></td>
+        <td class="muted">${w.type}</td>
+        <td class="muted">${w.kind}</td>
+        <td><code>${entry}</code></td>
+        <td><button type="button" class="btn secondary" data-add-legend="${w.kind}">Add T10</button></td>
+      </tr>`;
+    });
+    h += `</tbody></table>`;
+    el.innerHTML = h;
+    el.querySelectorAll("[data-add-legend]").forEach(btn => {
+      btn.onclick = () => {
+        const kind = toNum(btn.getAttribute("data-add-legend"));
+        const charGuid = toNum(($("legendCharGuid")||{}).value) || 1;
+        const gl = Math.max(1, toNum(($("legendGearLevel")||{}).value) || 10);
+        const res = addGearToBackpack(makeLegendaryEntry(kind, 10), gl, charGuid);
+        if (res && res.ok) {
+          renderEditor();
+          const w = LEGENDARY_WEAPONS[kind];
+          setStatus("Added " + (w && w.name) + " T10 (" + res.entry + ") → slot " + res.slot, "ok");
+        } else setStatus("Add failed: " + ((res && res.reason) || "unknown"), "err");
+      };
+    });
+  }
+  const epicEl = $("epicTable");
+  if (epicEl) {
+    let h = `<table><thead><tr><th></th><th>Name</th><th>Slot / type</th><th>Kind</th><th>Entry (Epic T10)</th><th></th></tr></thead><tbody>`;
+    (typeof EPIC_GEAR !== "undefined" ? EPIC_GEAR : []).forEach(w => {
+      const entry = makeGearEntry(w.kind, 4, 10);
+      const icon = "https://wow.zamimg.com/images/wow/icons/large/" + w.icon + ".jpg";
+      h += `<tr>
+        <td><img src="${icon}" alt="" width="36" height="36" style="border-radius:4px;border:1px solid #5a3a1a" onerror="this.style.opacity=.3"></td>
+        <td><strong>${w.name}</strong></td>
+        <td class="muted">${w.type}</td>
+        <td class="muted">${w.kind}</td>
+        <td><code>${entry}</code></td>
+        <td><button type="button" class="btn secondary" data-add-epic="${w.kind}">Add T10</button></td>
+      </tr>`;
+    });
+    h += `</tbody></table>`;
+    epicEl.innerHTML = h;
+    epicEl.querySelectorAll("[data-add-epic]").forEach(btn => {
+      btn.onclick = () => {
+        const k = toNum(btn.getAttribute("data-add-epic"));
+        const charGuid = toNum(($("legendCharGuid")||{}).value) || 1;
+        const gl = Math.max(1, toNum(($("legendGearLevel")||{}).value) || 10);
+        const res = addGearToBackpack(makeGearEntry(k, 4, 10), gl, charGuid);
+        if (res && res.ok) {
+          renderEditor();
+          const w = EPIC_GEAR.find(x => x.kind === k) || EPIC_GEAR[k];
+          setStatus("Added " + (w && w.name ? w.name : ("epic " + k)) + " T10 (" + res.entry + ") → slot " + res.slot, "ok");
+        } else setStatus("Add failed: " + ((res && res.reason) || "unknown"), "err");
+      };
+    });
+  }
+}
+function nextMailId(){
+  let max = 0;
+  (state.mails || []).forEach(m => { if (m.id > max) max = m.id; });
+  return max + 1;
+}
+// Displayed found-gear item level: round(10 * (1 + 0.25*(tier-1)) * qualityScale)
+// qualityScale: white/green=1, blue=1.1, epic/legendary=1.45
+function foundTierForItemLevel(itemLevel, quality){
+  itemLevel = Math.max(1, toNum(itemLevel) || 1);
+  quality = toNum(quality) || 4;
+  const qScale = quality >= 4 ? 1.45 : quality === 3 ? 1.1 : 1.0;
+  const scale = itemLevel / (10.0 * qScale);
+  // scale = 1 + 0.25*(tier-1)  =>  tier = 1 + (scale-1)/0.25
+  let tier = Math.round(1 + (scale - 1) / 0.25);
+  return Math.max(1, tier);
+}
+function foundItemLevel(tier, quality){
+  tier = Math.max(1, toNum(tier) || 1);
+  quality = toNum(quality) || 4;
+  const qScale = quality >= 4 ? 1.45 : quality === 3 ? 1.1 : 1.0;
+  return Math.round(10.0 * (1 + 0.25 * (tier - 1)) * qScale);
+}
+function sendFullGearToBackpack(charGuid){
+  charGuid = toNum(charGuid) || ((state.characters && state.characters[0] && state.characters[0].guid) || 1);
+  let gearLevel = 0;
+  const st = (state.charStats || []).find(s => toNum(s.guid) === charGuid);
+  if (st && st.best_level) gearLevel = st.best_level;
+  if (!gearLevel) gearLevel = getHighestCleared();
+  gearLevel = Math.max(1, Math.floor(toNum(gearLevel) || 1));
+
+  // Ensure arrays exist
+  if (!state.inventory) state.inventory = [];
+  if (!state.itemInstances) state.itemInstances = [];
+  if (!state.itemFound) state.itemFound = [];
+
+  const entries = [];
+  for (let k = 0; k < LEGENDARY_KINDS; k++) entries.push(makeLegendaryEntry(k, 10));
+  for (let k = 0; k < GEAR_KINDS; k++) entries.push(makeGearEntry(k, 4, 10));
+
+  let itemCount = 0;
+  let lastIg = 0;
+  let failReason = "";
+  const freeBefore = countFreeBackpackSlots(charGuid);
+  for (const entry of entries) {
+    const res = addGearToBackpack(entry, gearLevel, charGuid);
+    if (!res || !res.ok) {
+      failReason = (res && res.reason) || "unknown";
+      break;
+    }
+    itemCount++;
+    lastIg = res.ig;
+  }
+  const check = (state.itemFound || []).find(f => toNum(f.item_guid) === lastIg);
+  const storedTier = check ? check.tier : 0;
+  return {
+    itemCount,
+    gearLevel,
+    storedTier,
+    charGuid,
+    freeBefore,
+    failReason,
+    sampleEntry: entries[0],
+    invCount: (state.inventory || []).length,
+    approxIlvl: foundItemLevel(gearLevel, 4)
+  };
 }
 
 
@@ -592,10 +1035,42 @@ function renderEditor(){
     el.innerHTML = "<table><thead><tr>" + head + "</tr></thead><tbody>" + rows.map(rowFn).join("") + "</tbody></table>";
   }
 
-  fillTable("questTable", state.quests, "None.", "<th>Account</th><th>Quest</th><th>Progress</th><th>Done</th>",
-    (r,i) => `<tr><td>${r.account}</td><td>${r.quest}</td>
-      <td><input type="number" data-q-i="${i}" data-f="progress" value="${r.progress}" min="0"></td>
-      <td><input type="number" data-q-i="${i}" data-f="completed" value="${r.completed}" min="0" max="1"></td></tr>`);
+  const qt = $("questTable");
+  if (qt) {
+    const rows = (state.quests || []).slice().sort((a,b)=>a.quest-b.quest);
+    let h = `<table><thead><tr><th></th><th>Name</th><th>Category</th><th>ID</th><th>Progress</th><th>Done</th></tr></thead><tbody>`;
+    if (!rows.length) h += `<tr><td colspan="6" class="muted">None.</td></tr>`;
+    rows.forEach((r, i) => {
+      const d = questDisplay(r.quest);
+      h += `<tr>
+        <td><img src="${d.icon}" alt="" width="32" height="32" style="border-radius:4px;border:1px solid #5a3a1a" onerror="this.style.opacity=.3"></td>
+        <td><strong>${d.name}</strong></td>
+        <td class="muted">${d.category}</td>
+        <td class="muted">${r.quest}</td>
+        <td><input type="number" data-q-i="${i}" data-f="progress" value="${r.progress}" min="0"></td>
+        <td><input type="number" data-q-i="${i}" data-f="completed" value="${r.completed}" min="0" max="1"></td>
+      </tr>`;
+    });
+    // re-index after sort: data-q-i must match array index in state.quests after sort order
+    h += `</tbody></table>
+    <p class="hint" style="margin-top:.5rem">Official quest titles live in the world DB (<code>bonk_quest</code>), not the character save — so names show as Quest #ID. Icons cycle by category group.</p>`;
+    // Fix: sort creates wrong indices. Map by original index:
+    h = `<table><thead><tr><th></th><th>Name</th><th>Category</th><th>ID</th><th>Progress</th><th>Done</th></tr></thead><tbody>`;
+    if (!(state.quests || []).length) h += `<tr><td colspan="6" class="muted">None.</td></tr>`;
+    (state.quests || []).forEach((r, i) => {
+      const d = questDisplay(r.quest);
+      h += `<tr>
+        <td><img src="${d.icon}" alt="" width="32" height="32" style="border-radius:4px;border:1px solid #5a3a1a" onerror="this.style.opacity=.3"></td>
+        <td><strong>${d.name}</strong></td>
+        <td class="muted">${d.category}</td>
+        <td class="muted">${r.quest}</td>
+        <td><input type="number" data-q-i="${i}" data-f="progress" value="${r.progress}" min="0"></td>
+        <td><input type="number" data-q-i="${i}" data-f="completed" value="${r.completed}" min="0" max="1"></td>
+      </tr>`;
+    });
+    h += `</tbody></table><p class="hint" style="margin-top:.5rem">Quest titles are stored in the world database, not the save file — listed as Quest #ID with category icons.</p>`;
+    qt.innerHTML = h;
+  }
 
   fillTable("levelTable", state.levels, "None.", "<th>Account</th><th>Class</th><th>Best level</th><th>Best ms</th><th>Finale</th>",
     (r,i) => `<tr><td>${r.account}</td><td>${CLASS_NAMES[r.class]||r.class}</td>
@@ -661,6 +1136,10 @@ function renderEditor(){
       <td><input type="number" data-starter-i="${i}" value="${r.weapon}" min="0"></td></tr>`);
 }
 
+
+
+  renderLegendaryGear();
+
 function collectEdits(){
   const a = state.bonkAccount;
   if (!a) return;
@@ -715,6 +1194,35 @@ function collectEdits(){
   });
   document.querySelectorAll("[data-starter-i]").forEach(inp => {
     const i = +inp.getAttribute("data-starter-i"); if (state.starters[i]) state.starters[i].weapon = toNum(inp.value);
+  });
+
+
+  document.querySelectorAll("[data-eq-guid]").forEach(inp => {
+    const ig = toNum(inp.getAttribute("data-eq-guid"));
+    const val = toNum(inp.value);
+    const inv = (state.inventory || []).find(x => x.item_guid === ig);
+    const inst = (state.itemInstances || []).find(x => x.guid === ig);
+    if (inv) inv.item_id = val;
+    if (inst) inst.item_id = val;
+  });
+  document.querySelectorAll("[data-inv-guid]").forEach(inp => {
+    const ig = toNum(inp.getAttribute("data-inv-guid"));
+    const val = toNum(inp.value);
+    const inv = (state.inventory || []).find(x => x.item_guid === ig);
+    const inst = (state.itemInstances || []).find(x => x.guid === ig);
+    if (inv) inv.item_id = val;
+    if (inst) inst.item_id = val;
+  });
+  document.querySelectorAll("[data-found-guid]").forEach(inp => {
+    const ig = toNum(inp.getAttribute("data-found-guid"));
+    const val = toNum(inp.value);
+    if (!val) return;
+    let f = (state.itemFound || []).find(x => Number(x.item_guid) === ig);
+    if (!f) {
+      f = { item_guid: ig, tier: val, line1_effect:255, line1_roll:0, line2_effect:255, line2_roll:0, rerolls:0, reroll_line:255, upgrades:0, season:1, _raw:null };
+      if (!state.itemFound) state.itemFound = [];
+      state.itemFound.push(f);
+    } else f.tier = val;
   });
 
   // Apply highest cleared LAST so level-table inputs cannot overwrite it
@@ -803,172 +1311,92 @@ function buildModifiedSql(){
     }));
   }
   sql = replaceInsert(sql, "bonk_account_appearance", state.appearances.map(r => [r.account, r.entry].map(String)));
-  if (state.itemFound.length) {
-    sql = replaceInsert(sql, "bonk_item_found", state.itemFound.map(r => {
-      if (r._raw) { const x = r._raw.slice(); x[1]=String(r.tier); x[2]=String(r.line1_effect); x[6]=String(r.rerolls); if (x[8]!=null) x[8]=String(r.upgrades); return x; }
-      return null;
-    }).filter(Boolean));
+  if (state.itemFound && state.itemFound.length) {
+    // CRITICAL: empty saves have no INSERT for bonk_item_found — must ensureInsert
+    sql = ensureInsert(sql, "bonk_item_found", state.itemFound.map(r => {
+      const tier = Math.max(1, Math.floor(toNum(r.tier) || 1));
+      return [
+        String(toNum(r.item_guid)),
+        String(tier),
+        String(r.line1_effect != null ? r.line1_effect : 255),
+        String(r.line1_roll != null ? r.line1_roll : 0),
+        String(r.line2_effect != null ? r.line2_effect : 255),
+        String(r.line2_roll != null ? r.line2_roll : 0),
+        String(r.rerolls != null ? r.rerolls : 0),
+        String(r.reroll_line != null ? r.reroll_line : 255),
+        String(r.upgrades != null ? r.upgrades : 0),
+        String(r.season != null ? r.season : 1)
+      ];
+    }));
   }
-  if (state.starters.length) {
+  if (state.starters && state.starters.length) {
     sql = replaceInsert(sql, "bonk_account_starter", state.starters.map(r => {
       if (r._raw) { const x = r._raw.slice(); x[2]=String(r.weapon); return x; }
       return [r.account, r.class, r.weapon].map(String);
     }));
   }
-  if (state.presetActive.length) {
+  if (state.presetActive && state.presetActive.length) {
     sql = replaceInsert(sql, "bonk_account_mastery_preset_active", state.presetActive.map(r => {
       if (r._raw) { const x = r._raw.slice(); x[2]=String(r.slot); return x; }
       return [r.account, r.class, r.slot].map(String);
     }));
   }
+  if (state.inventory && state.inventory.length) {
+    sql = replaceInsert(sql, "character_inventory", state.inventory.map(r => {
+      if (r._raw) { const x = r._raw.slice(); x[4] = String(r.item_id); x[1]=String(r.bag); x[2]=String(r.slot); x[3]=String(r.item_guid); return x; }
+      return [r.guid, r.bag, r.slot, r.item_guid, r.item_id].map(String);
+    }));
+  }
+  if (state.itemInstances && state.itemInstances.length) {
+    sql = replaceInsert(sql, "item_instance", state.itemInstances.map(r => {
+      if (r._raw) { const x = r._raw.slice(); x[1] = String(r.item_id); return x; }
+      return r._raw || [r.guid, r.item_id, r.owner_guid || 1];
+    }));
+  }
+  if (state.mails && state.mails.length) {
+    sql = ensureInsert(sql, "mail", state.mails.map(r => r._raw || [
+      r.id, r.message_type||0, r.stationery||41, r.mail_template_id||0, r.sender_guid||0, r.receiver_guid,
+      sqlQuote(r.subject||""), r.item_text_id||0, r.has_items||0, r.expire_time||0, r.deliver_time||0, r.money||0, r.cod||0, r.checked||0
+    ].map(String)));
+  }
+  if (state.mailItems && state.mailItems.length) {
+    sql = ensureInsert(sql, "mail_items", state.mailItems.map(r => r._raw || [r.mail_id, r.item_guid, r.item_id, r.receiver_guid].map(String)));
+  }
   return sql;
 }
 
-function downloadBlob(blob, filename){
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2500);
+function openFilePicker(e){
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const fi = $("fileInput");
+  if (!fi) { setStatus("File input missing.", "err"); return; }
+  try { fi.value = ""; } catch (_) {}
+  fi.click();
 }
-async function exportSql(){
-  try {
-    const sql = buildModifiedSql();
-    downloadBlob(new Blob([sql], { type: "application/sql" }), "characters and accounts.sql");
-    setStatus("SQL downloaded. Prefer Export zip for launcher restore.", "ok");
-  } catch (e) { setStatus("Export failed: " + e.message, "err"); }
+const drop = $("dropZone");
+const fileInput = $("fileInput");
+if (fileInput) {
+  fileInput.addEventListener("change", () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (f) loadFile(f);
+  });
 }
-async function exportZip(){
-  try {
-    if (!state.zip) { setStatus("Load a zip first for zip export.", "err"); return; }
-    const sql = buildModifiedSql();
-    const out = new JSZip();
-    for (const [p, data] of Object.entries(state.otherFiles)) out.file(p, data);
-    out.file(state.sqlPath, sql);
-    const blob = await out.generateAsync({ type: "blob", compression: "DEFLATE" });
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-    downloadBlob(blob, "Hordes of Azeroth save edited " + stamp + ".zip");
-    setStatus("Edited zip ready. Launcher ··· → Restore a backup → pick this file.", "ok");
-  } catch (e) { console.error(e); setStatus("Zip export failed: " + e.message, "err"); }
-}
-
-// Bulk actions
-if ($("bulkMaxCurrency")) $("bulkMaxCurrency").onclick = () => {
-  collectEdits();
-  state.bonkAccount.gold = 999999999;
-  state.bonkAccount.shards = 9999;
-  state.bonkAccount.scrap = 999999;
-  renderEditor();
-  setStatus("Gold, shards, and scrap maximized. Export to apply.", "ok");
-};
-if ($("bulkCompleteQuests")) $("bulkCompleteQuests").onclick = () => {
-  collectEdits();
-  const acc = state.bonkAccount.account || 1;
-  const byId = new Map(state.quests.filter(q => q.account === acc).map(q => [q.quest, q]));
-  state.quests.forEach(q => { q.completed = 1; if (q.progress < 1) q.progress = 999999; });
-  let added = 0;
-  for (let id = 1; id <= 600; id++) {
-    if (!byId.has(id)) {
-      state.quests.push({ account: acc, quest: id, progress: 999999, completed: 1, _raw: null });
-      byId.set(id, true); added++;
-    }
-  }
-  renderEditor();
-  setStatus("All quests completed (filled " + added + " missing ids 1–600). Export to apply.", "ok");
-};
-if ($("bulkMaxUpgrades")) $("bulkMaxUpgrades").onclick = () => {
-  collectEdits(); state.upgrades.forEach(u => { u.rank = Math.max(u.rank, 10); }); renderEditor();
-  setStatus("Upgrade ranks raised. Export to apply.", "ok");
-};
-if ($("bulkMaxTalents")) $("bulkMaxTalents").onclick = () => {
-  collectEdits(); state.talents.forEach(t => { t.rank = Math.max(t.rank, 5); }); renderEditor();
-  setStatus("Talent ranks raised. Export to apply.", "ok");
-};
-if ($("bulkMaxMasteryNodes")) $("bulkMaxMasteryNodes").onclick = () => {
-  collectEdits(); state.masteryNodes.forEach(n => { n.rank = Math.max(n.rank, 3); }); renderEditor();
-  setStatus("Mastery node ranks raised. Export to apply.", "ok");
-};
-if ($("bulkMaxLevels")) $("bulkMaxLevels").onclick = () => {
-  collectEdits();
-  const acc = state.bonkAccount.account || 1;
-  const classes = [0,1,2,3,4,5,6,7,8,9,11];
-  state.levels.forEach(l => { if (l.best_level < 50) l.best_level = 50; });
-  const have = new Set(state.levels.filter(l => l.account === acc).map(l => l.class));
-  for (const c of classes) {
-    if (!have.has(c)) { state.levels.push({ account:acc, class:c, best_level:50, best_ms:0, best_finale:0, _raw:null }); have.add(c); }
-  }
-  state.mastery.forEach(m => { if (m.xp < 100000) m.xp = 100000; });
-  renderEditor();
-  setStatus("Best levels set to 50+ and mastery XP boosted. Export to apply.", "ok");
-};
-if ($("bulkUnlockDifficulties")) $("bulkUnlockDifficulties").onclick = () => {
-  collectEdits();
-  const acc = state.bonkAccount.account || 1;
-  const target = 50;
-  const classList = [0,1,2,3,4,5,6,7,8,9,11];
-  const byClass = new Map(state.levels.filter(l => l.account === acc).map(l => [l.class, l]));
-  for (const c of classList) {
-    if (byClass.has(c)) byClass.get(c).best_level = Math.max(byClass.get(c).best_level, target);
-    else {
-      const row = { account:acc, class:c, best_level:target, best_ms:1, best_finale:0, _raw:null };
-      state.levels.push(row); byClass.set(c, row);
-    }
-  }
-  const existing = new Set(state.levelBests.filter(r => r.account === acc).map(r => r.account + "|" + r.class + "|" + r.level));
-  let added = 0;
-  for (const c of classList) {
-    if (c === 0) continue;
-    for (let lvl = 1; lvl <= 40; lvl++) {
-      const key = acc + "|" + c + "|" + lvl;
-      if (!existing.has(key)) {
-        state.levelBests.push({ account:acc, class:c, level:lvl, clears:1, best_ms:600000, _raw:null });
-        existing.add(key); added++;
-      } else {
-        const row = state.levelBests.find(r => r.account === acc && r.class === c && r.level === lvl);
-        if (row && row.clears < 1) row.clears = 1;
-      }
-    }
-  }
-  state.charStats.forEach(s => { if (s.best_level < target) s.best_level = target; });
-  renderEditor();
-  setStatus("Normal / Heroic / Mythic unlocked via best_level=" + target + " + " + added + " level clears. Export zip and restore.", "ok");
-};
-if ($("bulkUnlockAppearances")) $("bulkUnlockAppearances").onclick = () => {
-  collectEdits();
-  const acc = state.bonkAccount.account || 1;
-  const have = new Set(state.appearances.filter(a => a.account === acc).map(a => a.entry));
-  const ranges = [[930000,931759],[932000,932079],[933000,933263],[939000,939007]];
-  let added = 0;
-  for (const [lo, hi] of ranges) {
-    for (let e = lo; e <= hi; e++) {
-      if (!have.has(e)) { state.appearances.push({ account:acc, entry:e, _raw:null }); have.add(e); added++; }
-    }
-  }
-  renderEditor();
-  setStatus("Unlocked all gear/dungeon/legendary/tabard looks (+" + added + " rows). Export to apply.", "ok");
-};
-
-if ($("btnAddApp")) $("btnAddApp").onclick = () => {
-  const entry = toNum(($("newAppEntry") || {}).value);
-  if (!entry) return;
-  const acc = state.bonkAccount.account || 1;
-  if (state.appearances.some(a => a.account === acc && a.entry === entry)) { setStatus("Already unlocked.", "info"); return; }
-  state.appearances.push({ account:acc, entry, _raw:null });
-  setVal("newAppEntry", "");
-  renderEditor();
-};
-
-// File UI
-const drop = $("dropZone"), fileInput = $("fileInput");
-if (drop && fileInput) {
-  drop.addEventListener("click", () => fileInput.click());
+if (drop) {
+  drop.addEventListener("click", (e) => {
+    if (e.target && (e.target.closest && e.target.closest("label[for=fileInput]"))) return;
+    openFilePicker(e);
+  });
+  drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") openFilePicker(e);
+  });
   drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("drag"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
   drop.addEventListener("drop", e => {
     e.preventDefault(); drop.classList.remove("drag");
-    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
   });
-  fileInput.addEventListener("change", () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+}
+if ($("btnChooseFile")) {
+  $("btnChooseFile").addEventListener("click", (e) => { openFilePicker(e); });
 }
 if ($("gold")) $("gold").oninput = updateGoldPretty;
 document.querySelectorAll(".tab").forEach(btn => {
@@ -980,7 +1408,7 @@ document.querySelectorAll(".tab").forEach(btn => {
     if (panel) panel.classList.add("active");
   };
 });
-document.querySelectorAll(".quick button").forEach(btn => {
+document.querySelectorAll(".quick button[data-set]").forEach(btn => {
   btn.onclick = () => {
     const field = btn.getAttribute("data-set"), val = toNum(btn.getAttribute("data-val"));
     const input = $(field); if (!input) return;
@@ -989,8 +1417,72 @@ document.querySelectorAll(".quick button").forEach(btn => {
     if (field === "gold") updateGoldPretty();
   };
 });
-if ($("btnExportSql")) $("btnExportSql").onclick = exportSql;
-if ($("btnExport")) $("btnExport").onclick = exportZip;
+async function exportSql(){
+  try {
+    if (!state.sqlText) { setStatus("Load a save first.", "err"); return; }
+    setStatus("Building modified SQL…", "info");
+    const out = buildModifiedSql();
+    const blob = new Blob([out], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "characters and accounts.sql";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    setStatus("Exported SQL (" + out.length + " chars). Restore via launcher.", "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Export SQL failed: " + (e && e.message ? e.message : e), "err");
+  }
+}
+async function exportZip(){
+  try {
+    if (!state.sqlText) { setStatus("Load a save first.", "err"); return; }
+    if (typeof JSZip === "undefined") { setStatus("JSZip not loaded.", "err"); return; }
+    setStatus("Building modified zip…", "info");
+    const out = buildModifiedSql();
+    const zip = new JSZip();
+    // Prefer original zip structure
+    if (state.zip) {
+      const names = Object.keys(state.zip.files);
+      for (const name of names) {
+        const e = state.zip.files[name];
+        if (!e || e.dir) continue;
+        if (name === state.sqlPath || name.endsWith(".sql") || name.split("/").pop() === "characters and accounts.sql") {
+          continue; // write modified SQL below
+        }
+        if (state.otherFiles && state.otherFiles[name]) {
+          zip.file(name, state.otherFiles[name]);
+        } else {
+          try { zip.file(name, await e.async("uint8array")); } catch (_) {}
+        }
+      }
+    } else if (state.otherFiles) {
+      for (const name of Object.keys(state.otherFiles)) {
+        zip.file(name, state.otherFiles[name]);
+      }
+    }
+    const sqlName = state.sqlPath || "characters and accounts.sql";
+    zip.file(sqlName, out);
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "Hordes of Azeroth save edited.zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    // quick verify found tier is in SQL
+    const hasFound = /INSERT INTO `bonk_item_found` VALUES/i.test(out);
+    setStatus("Exported zip. bonk_item_found INSERT " + (hasFound ? "present" : "MISSING") + ". Restore in launcher.", hasFound ? "ok" : "err");
+  } catch (e) {
+    console.error(e);
+    setStatus("Export zip failed: " + (e && e.message ? e.message : e), "err");
+  }
+}
+if ($("btnExportSql")) $("btnExportSql").onclick = () => { exportSql(); };
+if ($("btnExport")) $("btnExport").onclick = () => { exportZip(); };
 
 function doReload(){
   const ed = $("editor"); if (ed) ed.style.display = "none";
@@ -1002,6 +1494,133 @@ function doReload(){
 if ($("btnReload")) $("btnReload").onclick = doReload;
 if ($("btnReloadTop")) $("btnReloadTop").onclick = doReload;
 if ($("btnExportTop") && $("btnExport")) $("btnExportTop").onclick = () => $("btnExport").click();
+
+if ($("btnGearLevelFromBest")) $("btnGearLevelFromBest").onclick = () => {
+  const charGuid = toNum(($("legendCharGuid")||{}).value) || 1;
+  const best = bestRunLevelForChar(charGuid);
+  setVal("legendGearLevel", best || 1);
+  setStatus("Gear level set to best run level (" + best + "). No cap at 10.", "ok");
+};
+if ($("legendCharGuid")) $("legendCharGuid").onchange = () => renderLegendaryGear();
+
+if ($("legendGearLevel")) $("legendGearLevel").onchange = () => {};
+
+// —— Quick unlocks ——
+if ($("bulkMaxCurrency")) $("bulkMaxCurrency").onclick = () => {
+  collectEdits();
+  if (state.bonkAccount) {
+    state.bonkAccount.gold = Math.max(state.bonkAccount.gold || 0, 999999999);
+    state.bonkAccount.shards = Math.max(state.bonkAccount.shards || 0, 999999);
+    state.bonkAccount.scrap = Math.max(state.bonkAccount.scrap || 0, 999999);
+  }
+  renderEditor();
+  setStatus("Maxed gold / shards / scrap. Export to apply.", "ok");
+};
+if ($("bulkCompleteQuests")) $("bulkCompleteQuests").onclick = () => {
+  collectEdits();
+  (state.quests || []).forEach(q => { q.completed = 1; q.progress = Math.max(q.progress || 0, 1); });
+  renderEditor();
+  setStatus("Marked " + (state.quests || []).length + " quests completed. Export to apply.", "ok");
+};
+if ($("bulkMaxUpgrades")) $("bulkMaxUpgrades").onclick = () => {
+  collectEdits();
+  (state.upgrades || []).forEach(u => { u.rank = Math.max(u.rank || 0, 10); });
+  renderEditor();
+  setStatus("Upgrade ranks raised. Export to apply.", "ok");
+};
+if ($("bulkMaxTalents")) $("bulkMaxTalents").onclick = () => {
+  collectEdits();
+  (state.talents || []).forEach(t => { t.rank = Math.max(t.rank || 0, 5); });
+  renderEditor();
+  setStatus("Talent ranks raised. Export to apply.", "ok");
+};
+if ($("bulkMaxMasteryNodes")) $("bulkMaxMasteryNodes").onclick = () => {
+  collectEdits();
+  (state.masteryNodes || []).forEach(n => { n.rank = Math.max(n.rank || 0, 3); });
+  renderEditor();
+  setStatus("Mastery node ranks raised. Export to apply.", "ok");
+};
+if ($("bulkMaxLevels")) $("bulkMaxLevels").onclick = () => {
+  collectEdits();
+  const acc = (state.bonkAccount && state.bonkAccount.account) || 1;
+  const classes = [0,1,2,3,4,5,6,7,8,9,11];
+  (state.levels || []).forEach(l => { if ((l.best_level || 0) < 50) l.best_level = 50; });
+  const have = new Set((state.levels || []).filter(l => l.account === acc).map(l => l.class));
+  for (const c of classes) {
+    if (!have.has(c)) {
+      state.levels.push({ account: acc, class: c, best_level: 50, best_ms: 0, best_finale: 0, _raw: null });
+      have.add(c);
+    }
+  }
+  (state.mastery || []).forEach(m => { if ((m.xp || 0) < 100000) m.xp = 100000; });
+  renderEditor();
+  setStatus("Best levels set to 50+ and mastery XP boosted. Export to apply.", "ok");
+};
+if ($("bulkUnlockDifficulties")) $("bulkUnlockDifficulties").onclick = () => {
+  collectEdits();
+  setHighestCleared(Math.max(50, getHighestCleared()));
+  renderEditor();
+  setStatus("Difficulties unlocked via best cleared level. Export to apply.", "ok");
+};
+if ($("bulkUnlockAppearances")) $("bulkUnlockAppearances").onclick = () => {
+  collectEdits();
+  // Unlock common gear appearance range if empty additions needed — mark existing + fill known range
+  const acc = (state.bonkAccount && state.bonkAccount.account) || 1;
+  const have = new Set((state.appearances || []).map(a => a.entry));
+  let added = 0;
+  // Gear entries (T10 epics/legendaries) as appearance unlocks
+  for (let k = 0; k < GEAR_KINDS; k++) {
+    for (let q = 1; q <= 4; q++) {
+      const e = makeGearEntry(k, q, 10);
+      if (!have.has(e)) {
+        state.appearances.push({ account: acc, entry: e });
+        have.add(e);
+        added++;
+      }
+    }
+  }
+  for (let k = 0; k < LEGENDARY_KINDS; k++) {
+    const e = makeLegendaryEntry(k, 10);
+    if (!have.has(e)) {
+      state.appearances.push({ account: acc, entry: e });
+      have.add(e);
+      added++;
+    }
+  }
+  renderEditor();
+  setStatus("Unlocked appearances (+" + added + " new). Export to apply.", "ok");
+};
+if ($("bulkFullGearBackpack")) $("bulkFullGearBackpack").onclick = () => {
+  try {
+    if (!state.sqlText) { setStatus("Load a save first.", "err"); return; }
+    setStatus("Adding full gear to backpack…", "info");
+    const charGuid = (state.characters && state.characters[0] && state.characters[0].guid) || 1;
+    const res = sendFullGearToBackpack(charGuid);
+    try { renderEditor(); } catch (e) { console.warn(e); }
+    if (!res.itemCount) {
+      setStatus(
+        "Added 0 items. freeSlots=" + res.freeBefore + " invRows=" + res.invCount +
+        " sampleEntry=" + res.sampleEntry + " reason=" + (res.failReason || "?") +
+        " bestRun=" + res.gearLevel + " guid=" + res.charGuid,
+        "err"
+      );
+    } else {
+      setStatus(
+        "Backpack: added " + res.itemCount + " items. found.tier=" + res.storedTier +
+        " (best run " + res.gearLevel + ") → ilvl ~" + res.approxIlvl + ". Export zip and restore.",
+        res.storedTier === res.gearLevel ? "ok" : "err"
+      );
+    }
+  } catch (e) {
+    console.error(e);
+    setStatus("Full Gear failed: " + (e && e.message ? e.message : e), "err");
+  }
+};
+
+
+
+
+
 
 document.querySelectorAll("[data-set-level]").forEach(btn => {
   btn.onclick = () => {
